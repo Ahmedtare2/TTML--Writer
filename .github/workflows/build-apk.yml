@@ -1,0 +1,94 @@
+name: Build APK
+
+# One-time phone setup: upload TTML-Editor-upload.zip to the repository, then create this file
+# (.github/workflows/build-apk.yml). The first run unpacks the zip into the repository and builds the APK.
+# After that, every push builds again.
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write        # to commit the unpacked files, and to attach the APK to a release for tags like v1.2.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack an uploaded zip, if there is one
+        run: |
+          shopt -s nullglob
+          zips=(*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then echo "No zip in the repository root: building what is here."; exit 0; fi
+          echo "Unpacking ${zips[0]}"
+          mkdir _unpack && unzip -q -o "${zips[0]}" -d _unpack
+          src=_unpack
+          if [ "$(ls -A _unpack | wc -l)" -eq 1 ] && [ -d "_unpack/$(ls -A _unpack)" ]; then src="_unpack/$(ls -A _unpack)"; fi
+          rm -rf "$src/.github"          # this workflow stays as it is
+          cp -a "$src"/. .
+          rm -rf _unpack "${zips[@]}"
+          if [ "${{ github.ref_type }}" = "branch" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "Unpack uploaded project" || true
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
+          ls
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build the editor page and check its JavaScript
+        run: |
+          python tools/build_assets.py
+          python tools/check_web.py
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build the signed APK
+        run: gradle --no-daemon assembleRelease
+        env:
+          # Optional: your own private key (see README). Without these the keystore in the repo is used.
+          TTML_KEYSTORE: ${{ secrets.TTML_KEYSTORE_PATH }}
+          TTML_KEYSTORE_PASSWORD: ${{ secrets.TTML_KEYSTORE_PASSWORD }}
+          TTML_KEY_ALIAS: ${{ secrets.TTML_KEY_ALIAS }}
+          TTML_KEY_PASSWORD: ${{ secrets.TTML_KEY_PASSWORD }}
+
+      - name: Name the APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/TTML-Editor.apk
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TTML-Editor-apk
+          path: dist/TTML-Editor.apk
+          if-no-files-found: error
+
+      - name: Attach to the release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/TTML-Editor.apk
+          generate_release_notes: true
