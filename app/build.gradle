@@ -3,44 +3,44 @@ plugins {
 }
 
 android {
-    namespace 'app.ttmleditor'
-    compileSdk 34
+    namespace = 'app.ttmleditor'
+    compileSdk = 34
 
     defaultConfig {
-        applicationId 'app.ttmleditor'
-        minSdk 29                       // Android 10+: saving to Downloads needs no storage permission
-        targetSdk 34
+        applicationId = 'app.ttmleditor'
+        minSdk = 29                     // Android 10+: saving to Downloads needs no storage permission
+        targetSdk = 34
         // every GitHub run gets a higher number, so a new APK installs over the old one
-        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
-        versionName '1.1.0'
+        versionCode = Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+        versionName = '1.1.0'
     }
 
     signingConfigs {
         release {
             // The repo ships a personal-use keystore so every build is signed with the SAME key (needed to update
             // the app in place). To use your own private key, set these environment variables / GitHub secrets.
-            storeFile file(System.getenv('TTML_KEYSTORE') ?: 'ttml-editor.p12')
-            storeType 'pkcs12'
-            storePassword System.getenv('TTML_KEYSTORE_PASSWORD') ?: 'ttmleditor'
-            keyAlias System.getenv('TTML_KEY_ALIAS') ?: 'ttmleditor'
-            keyPassword System.getenv('TTML_KEY_PASSWORD') ?: 'ttmleditor'
+            storeFile = file(System.getenv('TTML_KEYSTORE') ?: 'ttml-editor.p12')
+            storeType = 'pkcs12'
+            storePassword = System.getenv('TTML_KEYSTORE_PASSWORD') ?: 'ttmleditor'
+            keyAlias = System.getenv('TTML_KEY_ALIAS') ?: 'ttmleditor'
+            keyPassword = System.getenv('TTML_KEY_PASSWORD') ?: 'ttmleditor'
         }
     }
 
     buildTypes {
         release {
-            minifyEnabled false
-            signingConfig signingConfigs.release
+            minifyEnabled = false
+            signingConfig = signingConfigs.release
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     lint {
-        checkReleaseBuilds false
-        abortOnError false
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 }
